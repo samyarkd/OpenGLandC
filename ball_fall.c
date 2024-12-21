@@ -89,15 +89,17 @@ void keyboard(unsigned char key, int x, int y) {
  */
 void update(int value) {
   if (falling) {
+    float prev_ball_y = ball_y; // Store previous ball y-coordinate
     ball_speed -= ball_a;
     ball_y += ball_speed;
 
     if (ball_y <= 5) {
       ball_y = 5;
       ball_speed *= -bounce_dampening;
-      bounce_count++; // Increment bounce count on each bounce
+      bounce_count++;
 
-      if (fabs(ball_speed) < 0.5) {
+      // Check for minimal change in position
+      if (fabs(ball_y - prev_ball_y) < 0.5) {
         falling = false;
       }
     }
@@ -105,7 +107,6 @@ void update(int value) {
   glutPostRedisplay();
   glutTimerFunc(30, update, 0);
 }
-
 // Driver Program
 int main(int argc, char **argv) {
   glutInit(&argc, argv);
