@@ -24,3 +24,5 @@ I have also used a lot of help of LLMs for explaining and what and how can I do 
 
 - [OpenGL pipeline](https://opengl-notes.readthedocs.io/en/latest/topics/intro/opengl-pipeline.html)
 - [Simple Circle](https://www.geeksforgeeks.org/getting-started-with-opengl/)
+- [Understanding 3D](https://stackoverflow.com/a/36046924/13825398)
+- [Gravity and 3D](https://www.youtube.com/watch?v=zIzlsphGjkY&ab_channel=NamePointer)
