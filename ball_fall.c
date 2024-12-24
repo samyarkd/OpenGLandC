@@ -23,7 +23,7 @@ float bounce_dampening = 0.8; // Adjust this value to control bounce height
 bool falling = true; // Flag to control the falling animation
 
 // Initialization function
-void myInit(void) {
+void scene_defaults(void) {
   // Reset background color with black (since all three argument is 0.0)
   glClearColor(0.0, 0.0, 0.0, 1.0);
 
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
 
   // Name to window
   glutCreateWindow("Revolution");
-  myInit();
+  scene_defaults();
   glutDisplayFunc(display);
   glutTimerFunc(30, update, 0); // Start the animation
   glutKeyboardFunc(keyboard);   // Register the keyboard function
