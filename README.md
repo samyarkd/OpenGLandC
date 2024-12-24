@@ -6,6 +6,8 @@ I will share what I have learned about OpenGL here, I don't like reading docs co
 
 ## How to run OpenGL code
 
+Update: the first few single files can be run with the bellow command but from this update i will separate each simple project with it's own `Makefile` and you can use the Makefile or probably check the read me.
+
 > [!TIP]
 > Run the c files with this command `gcc ball_fall.c -o ball_exe   -lGL -lGLU -lglut -lm && ./ball_exe`
 > Just replace the names
@@ -26,3 +28,5 @@ I have also used a lot of help of LLMs for explaining and what and how can I do 
 - [Simple Circle](https://www.geeksforgeeks.org/getting-started-with-opengl/)
 - [Understanding 3D](https://stackoverflow.com/a/36046924/13825398)
 - [Gravity and 3D](https://www.youtube.com/watch?v=zIzlsphGjkY&ab_channel=NamePointer)
+- [Learn OpenGL](https://learnopengl.com/Getting-started/) _In C++_
+- [Glad With C](https://github.com/Dav1dde/glad/wiki/C)
