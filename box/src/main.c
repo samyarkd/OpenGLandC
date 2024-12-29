@@ -1,5 +1,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 
+#include <cglm/cglm.h>
+#include <cglm/mat4.h>
+
 #include "utils.c"
 
 #include "glad.h"
@@ -180,8 +183,8 @@ int main() {
 
   /*
    * RENDER LOOOOOOP
-   * NOTE: this the main loop of our app which we can do all the magical stuff
-   * here
+   * NOTE: this the main loop of our app which we can do all the magical
+   * stuff here
    * */
   while (!glfwWindowShouldClose(window)) {
     // input
@@ -196,12 +199,22 @@ int main() {
     // activate the shader so we can change the uniform
     glUseProgram(shaderProgram);
 
-    /* UNIFORM EXAMPLE */
-    // float timeValue = glfwGetTime();
-    // float greenValue = sin(timeValue) / 2.0f + 0.5f;
-    // int vertexColorLocation =
-    //     glGetUniformLocation(shaderProgram, "passedColorFromOpenGl");
-    // glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+    mat4 transform = GLM_MAT4_IDENTITY_INIT;
+
+    // Apply translation
+    vec3 translation = {0.2f, 0.0f, 0.0f};
+    glm_translate(transform, translation);
+
+    // Apply rotation
+    float angle = (float)glfwGetTime(); // Time-based rotation
+    vec3 axis = {0.0f, 0.0f, 1.0f};     // Rotation around Z-axis
+    glm_rotate(transform, angle, axis);
+
+    vec3 halfScale = {0.5f, 0.5f, 0.5f}; // Rotation around Z-axis
+    glm_scale(transform, halfScale);
+
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1,
+                       GL_FALSE, (float *)transform);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
