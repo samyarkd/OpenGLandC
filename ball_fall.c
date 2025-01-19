@@ -75,7 +75,7 @@ void display(void) {
   glFlush();
 }
 
-void keyboard(unsigned char key, int x, int y) {
+void keyboard_callback(unsigned char key, int x, int y) {
   if (key == 'r' || key == 'R') {
     ball_y = 300;
     ball_speed = 0;
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
   glutCreateWindow("Revolution");
   scene_defaults();
   glutDisplayFunc(display);
-  glutTimerFunc(30, update, 0); // Start the animation
-  glutKeyboardFunc(keyboard);   // Register the keyboard function
+  glutTimerFunc(30, update, 0);        // Start the animation
+  glutKeyboardFunc(keyboard_callback); // Register the keyboard function
   glutMainLoop();
 }
