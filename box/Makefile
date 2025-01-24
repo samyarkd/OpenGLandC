@@ -2,10 +2,10 @@
 CC = gcc
 
 # Set the flags for the compiler
-CFLAGS = -Iglad/include
+CFLAGS = -Iglad/include -g
 
 # Set the libraries to link against
-LIBS = -lglfw -lm -ldl
+LIBS = -lglfw -lm -ldl -lcglm
 
 # Set the source files
 SRC = src/main.c glad/src/glad.c

@@ -1,0 +1,42 @@
+{
+  "title": "Challenquiz First Wins",
+  "subtitle": "Challenquiz collection for users who have won at least on quiz at @challenquizbot",
+  "description": "Challenquiz collection for users who have won at least on quiz at @challenquizbot",
+  "hub_id": 1,
+  "rewards": {
+    "mint_type": "manual",
+    "collection": {
+      "title": "Challenquiz First Wins",
+      "description": "Challenquiz collection for users who have won at least on quiz at @challenquizbot",
+      "image": {
+        "url": "https://storage.onton.live/ontonimage/first_win.jpeg"
+      },
+      "cover": {
+        "url": "https://storage.onton.live/ontonimage/first_win.jpeg"
+      },
+      "metadata": {
+        "social_links": [
+          "https://t.me/challenquizbot"
+        ]
+      },
+      "item_title": "First Win on Challenquiz ",
+      "item_description": "Reward for users First Win on Challenquiz",
+      "item_image": {
+        "url": "https://storage.onton.live/ontonimage/first_win.jpeg"
+      },
+      "item_video": {
+        "url": "https://storage.onton.live/ontonvideo/event/winner_sbt.mp4"
+      },
+      "item_metadata": {
+        "buttons": [
+          {
+		"uri": 	  "https://t.me/challenquizbot",
+		"label":	"Open Challenquiz"
+          }
+        ],
+        "activity_type": "Reward",
+        "organizer": "Challenquiz"
+      }
+    }
+  }
+}
