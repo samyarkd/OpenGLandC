@@ -1,96 +1,77 @@
 
-
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 #include "glad.h"
+#include "stb_image.h"
 #include <GLFW/glfw3.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+#define SCR_WIDTH 800
+#define SCR_HEIGHT 600
 
-GLuint texture1, texture2;
-
-void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-  glViewport(0, 0, width, height);
+// Matrix utility functions
+void mat4_identity(float *mat) {
+  for (int i = 0; i < 16; i++)
+    mat[i] = 0.0f;
+  mat[0] = mat[5] = mat[10] = mat[15] = 1.0f;
 }
 
-void key_callback(GLFWwindow *window, int key, int scancode, int action,
-                  int mods) {
-  if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
-    glfwSetWindowShouldClose(window, GLFW_TRUE);
+void mat4_rotate(float *mat, float angle, float x, float y, float z) {
+  float c = cosf(angle);
+  float s = sinf(angle);
+  float inv_c = 1.0f - c;
+
+  mat[0] = x * x * inv_c + c;
+  mat[1] = y * x * inv_c + z * s;
+  mat[2] = x * z * inv_c - y * s;
+  mat[3] = 0.0f;
+
+  mat[4] = x * y * inv_c - z * s;
+  mat[5] = y * y * inv_c + c;
+  mat[6] = y * z * inv_c + x * s;
+  mat[7] = 0.0f;
+
+  mat[8] = x * z * inv_c + y * s;
+  mat[9] = y * z * inv_c - x * s;
+  mat[10] = z * z * inv_c + c;
+  mat[11] = 0.0f;
+
+  mat[12] = 0.0f;
+  mat[13] = 0.0f;
+  mat[14] = 0.0f;
+  mat[15] = 1.0f;
+}
+
+void mat4_translate(float *mat, float x, float y, float z) {
+  mat[12] += x;
+  mat[13] += y;
+  mat[14] += z;
+}
+
+void mat4_perspective(float *mat, float fov, float aspect, float near,
+                      float far) {
+  float tanHalfFOV = tanf(fov / 2.0f);
+  mat4_identity(mat);
+  mat[0] = 1.0f / (aspect * tanHalfFOV);
+  mat[5] = 1.0f / tanHalfFOV;
+  mat[10] = -(far + near) / (far - near);
+  mat[11] = -1.0f;
+  mat[14] = -(2.0f * far * near) / (far - near);
+  mat[15] = 0.0f;
+}
+
+void mat4_multiply(float *result, float *a, float *b) {
+  for (int row = 0; row < 4; row++) {
+    for (int col = 0; col < 4; col++) {
+      result[col + row * 4] =
+          a[0 + row * 4] * b[col + 0 * 4] + a[1 + row * 4] * b[col + 1 * 4] +
+          a[2 + row * 4] * b[col + 2 * 4] + a[3 + row * 4] * b[col + 3 * 4];
+    }
   }
 }
 
-char *read_file(const char *filepath) {
-  FILE *file = fopen(filepath, "rb");
-  if (!file) {
-    fprintf(stderr, "Failed to open file: %s\n", filepath);
-    return NULL;
-  }
-
-  fseek(file, 0, SEEK_END);
-  long length = ftell(file);
-  fseek(file, 0, SEEK_SET);
-
-  char *content = (char *)malloc(length + 1);
-  if (!content) {
-    fprintf(stderr, "Memory allocation failed for file: %s\n", filepath);
-    fclose(file);
-    return NULL;
-  }
-
-  size_t read_length = fread(content, 1, length, file);
-  if (read_length != length) {
-    fprintf(stderr, "Failed to read file: %s\n", filepath);
-    free(content);
-    fclose(file);
-    return NULL;
-  }
-
-  content[length] = '\0';
-  fclose(file);
-  return content;
-}
-
-GLFWwindow *setup_window() {
-  if (!glfwInit()) {
-    printf("Failed to initialize GLFW\n");
-    return NULL;
-  }
-
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-  GLFWwindow *window =
-      glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
-  if (window == NULL) {
-    printf("Failed to create GLFW window\n");
-    glfwTerminate();
-    return NULL;
-  }
-
-  glfwMakeContextCurrent(window);
-
-  // Initialize GLAD
-  if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-    printf("Failed to initialize GLAD\n");
-    glfwDestroyWindow(window);
-    glfwTerminate();
-    return NULL;
-  }
-
-  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-  // Register the key callback
-  glfwSetKeyCallback(window, key_callback);
-
-  return window;
-}
-
+// Shader compilation utilities
 GLuint compile_shader(GLenum type, const char *source) {
   GLuint shader = glCreateShader(type);
   glShaderSource(shader, 1, &source, NULL);
@@ -131,24 +112,39 @@ GLuint create_shader_program(const char *vertexSrc, const char *fragmentSrc) {
   return shaderProgram;
 }
 
-GLuint setup_vertex_data(float *vertices, size_t size) {
-  GLuint VBO, VAO;
-  glGenVertexArrays(1, &VAO);
-  glGenBuffers(1, &VBO);
-  glBindVertexArray(VAO);
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, size, vertices, GL_STATIC_DRAW);
+// Read file utility
+char *read_file(const char *filepath) {
+  FILE *file = fopen(filepath, "rb");
+  if (!file) {
+    fprintf(stderr, "Failed to open file: %s\n", filepath);
+    return NULL;
+  }
 
-  // Position attribute
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
-  // Texture Coord attribute
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
-                        (void *)(3 * sizeof(float)));
-  glEnableVertexAttribArray(1);
-  return VAO;
+  fseek(file, 0, SEEK_END);
+  long length = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  char *content = (char *)malloc(length + 1);
+  if (!content) {
+    fprintf(stderr, "Memory allocation failed for file: %s\n", filepath);
+    fclose(file);
+    return NULL;
+  }
+
+  size_t read_length = fread(content, 1, length, file);
+  if (read_length != length) {
+    fprintf(stderr, "Failed to read file: %s\n", filepath);
+    free(content);
+    fclose(file);
+    return NULL;
+  }
+
+  content[length] = '\0';
+  fclose(file);
+  return content;
 }
 
+// Texture loading
 GLuint load_texture(const char *path) {
   GLuint texture;
   glGenTextures(1, &texture);
@@ -182,94 +178,197 @@ GLuint load_texture(const char *path) {
   return texture;
 }
 
-GLuint render_shape(GLuint VAO, GLuint shaderProgram, int vertexCount,
-                    const char *imagePath) {
-  glUseProgram(shaderProgram);
-
-  if (imagePath) {
-    glActiveTexture(GL_TEXTURE0);
-  }
-
-  GLfloat timeValue = glfwGetTime();
-  GLint timeLocation = glGetUniformLocation(shaderProgram, "iTime");
-  if (timeLocation != -1) {
-    glUniform1f(timeLocation, timeValue);
-  }
-
-  glBindVertexArray(VAO);
-  glDrawArrays(GL_TRIANGLES, 0, vertexCount);
-
-  return 0;
+// GLFW error callback
+void glfw_error_callback(int error, const char *description) {
+  fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
-int main(int argc, char **argv) {
-  GLFWwindow *window = setup_window();
-  if (window == NULL) {
+
+int main() {
+  // Initialize GLFW
+  glfwSetErrorCallback(glfw_error_callback);
+  if (!glfwInit()) {
+    fprintf(stderr, "Failed to initialize GLFW\n");
     return -1;
   }
 
-  // Define paths to shader files
-  const char *vertexPath = "src/shaders/vert.glsl";
-  const char *fragmentPath = "src/shaders/frag.glsl";
-  texture1 = load_texture("src/assets/cosmic.jpeg");
-  texture2 = load_texture("src/assets/cosmic.jpeg");
+  // Set GLFW context version to 3.3 and core profile
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  // Load shader sources from files
-  char *vertexSrc = read_file(vertexPath);
-  char *fragmentSrc = read_file(fragmentPath);
-
-  float vertices1[] = {
-      // Triangle vertices
-      -1.0f, -0.5f, 0.0f, // Bottom left
-      0.5f,  -0.5f, 0.0f, // Bottom right
-      0.0f,  0.5f,  0.0f  // Top
-  };
-
-  float vertices2[] = {// positions       // texture coords
-                       -0.5f, -0.5f, 0.0f,  0.0f, 0.0f,  0.5f, -0.5f, 0.0f,
-                       1.0f,  0.0f,  0.5f,  0.5f, 0.0f,  1.0f, 1.0f,  0.5f,
-                       0.5f,  0.0f,  1.0f,  1.0f, -0.5f, 0.5f, 0.0f,  0.0f,
-                       1.0f,  -0.5f, -0.5f, 0.0f, 0.0f,  0.0f};
-
-  if (!vertexSrc || !fragmentSrc) {
-    fprintf(stderr, "Failed to load shader files.\n");
-    // Free any successfully loaded shaders
-    free(vertexSrc);
-    free(fragmentSrc);
+  // Create window
+  GLFWwindow *window =
+      glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Rotating Cube", NULL, NULL);
+  if (window == NULL) {
+    fprintf(stderr, "Failed to create GLFW window\n");
     glfwTerminate();
     return -1;
   }
+  glfwMakeContextCurrent(window);
 
-  GLuint shaderProgram1 = create_shader_program(vertexSrc, fragmentSrc);
-  GLuint VAO1 = setup_vertex_data(vertices1, sizeof(vertices1));
+  // Initialize GLAD
+  if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+    fprintf(stderr, "Failed to initialize GLAD\n");
+    return -1;
+  }
 
-  GLuint shaderProgram2 = create_shader_program(vertexSrc, fragmentSrc);
-  GLuint VAO2 = setup_vertex_data(vertices2, sizeof(vertices2));
+  // Set viewport
+  glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
-  glUseProgram(shaderProgram1);
-  glUniform1i(glGetUniformLocation(shaderProgram1, "ourTexture"), 0);
-  glUseProgram(shaderProgram2);
-  glUniform1i(glGetUniformLocation(shaderProgram2, "ourTexture"), 0);
+  // Enable depth testing
+  glEnable(GL_DEPTH_TEST);
 
-  // Free shader source memory after creating programs
-  free(vertexSrc);
-  free(fragmentSrc);
+  // Define vertex and fragment shader sources
+  const char *vertexShaderSource =
+      "#version 330 core\n"
+      "layout(location = 0) in vec3 position;\n"
+      "layout(location = 1) in vec2 texCoord;\n"
+      "out vec2 TexCoord;\n"
+      "uniform mat4 model;\n"
+      "uniform mat4 view;\n"
+      "uniform mat4 projection;\n"
+      "void main()\n"
+      "{\n"
+      "    gl_Position = projection * view * model * vec4(position, 1.0);\n"
+      "    TexCoord = texCoord;\n"
+      "}";
 
+  const char *fragmentShaderSource =
+      "#version 330 core\n"
+      "out vec4 color;\n"
+      "in vec2 TexCoord;\n"
+      "uniform sampler2D ourTexture;\n"
+      "uniform float iTime;\n"
+      "void main()\n"
+      "{\n"
+      "    vec4 texColor = texture(ourTexture, TexCoord);\n"
+      "    float red = sin(iTime);\n"
+      "    float green = sin(iTime + 2.0);\n"
+      "    float blue = sin(iTime + 4.0);\n"
+      "    color = vec4(red, green, blue, 1.0) * texColor;\n"
+      "}";
+
+  // Create shader program
+  GLuint shaderProgram =
+      create_shader_program(vertexShaderSource, fragmentShaderSource);
+
+  // Define cube vertices (positions and texture coordinates)
+  float vertices[] = {
+      // Front face
+      -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.5f, 0.5f,
+      0.5f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f, 1.0f, -0.5f, 0.5f, 0.5f, 0.0f,
+      1.0f, -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+
+      // Back face
+      -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, -0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.5f,
+      0.5f, -0.5f, 0.0f, 1.0f, 0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.5f, -0.5f,
+      -0.5f, 0.0f, 0.0f, -0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+
+      // Left face
+      -0.5f, 0.5f, 0.5f, 1.0f, 0.0f, -0.5f, 0.5f, -0.5f, 1.0f, 1.0f, -0.5f,
+      -0.5f, -0.5f, 0.0f, 1.0f, -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, -0.5f, -0.5f,
+      0.5f, 0.0f, 0.0f, -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+      // Right face
+      0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.5f, -0.5f, 0.5f, 1.0f, 1.0f, 0.5f, -0.5f,
+      -0.5f, 0.0f, 1.0f, 0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.5f, 0.5f, -0.5f,
+      0.0f, 0.0f, 0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+      // Top face
+      -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 0.5f, 0.5f,
+      0.5f, 1.0f, 0.0f, 0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.5f, 0.5f, -0.5f, 1.0f,
+      1.0f, -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+
+      // Bottom face
+      -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.5f,
+      -0.5f, 0.5f, 0.0f, 0.0f, 0.5f, -0.5f, 0.5f, 0.0f, 0.0f, -0.5f, -0.5f,
+      0.5f, 1.0f, 0.0f, -0.5f, -0.5f, -0.5f, 1.0f, 1.0f};
+
+  // Create VAO and VBO
+  GLuint VAO, VBO;
+  glGenVertexArrays(1, &VAO);
+  glGenBuffers(1, &VBO);
+
+  // Bind VAO
+  glBindVertexArray(VAO);
+
+  // Bind and set VBO data
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  // Position attribute
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
+  // Texture Coord attribute
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                        (void *)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
+
+  // Load texture
+  GLuint texture = load_texture("src/assets/cosmic.jpeg");
+
+  // Use shader program and set texture uniform
+  glUseProgram(shaderProgram);
+  glUniform1i(glGetUniformLocation(shaderProgram, "ourTexture"), 0);
+
+  // Define transformation matrices
+  float model[16], view[16], projection[16];
+  mat4_identity(model);
+  mat4_identity(view);
+  mat4_identity(projection);
+
+  // Set up view matrix (camera)
+  mat4_translate(view, 0.0f, 0.0f, -3.0f);
+
+  // Set up projection matrix
+  mat4_perspective(projection, 45.0f * (M_PI / 180.0f),
+                   (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+
+  // Pass view and projection matrices to the shader
+  glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE,
+                     view);
+  glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1,
+                     GL_FALSE, projection);
+
+  // Render loop
   while (!glfwWindowShouldClose(window)) {
-    glClear(GL_COLOR_BUFFER_BIT);
+    // Calculate time
+    float timeValue = glfwGetTime();
 
-    // Render each shape with existing textures
-    render_shape(VAO1, shaderProgram1, 3, NULL); // Triangle
+    // Clear color and depth buffers
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    render_shape(VAO2, shaderProgram2, 6, NULL); // Rectangle
+    // Activate texture unit and bind texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
 
+    // Calculate rotation angles
+    mat4_identity(model);
+    mat4_rotate(model, timeValue * 1.0f, 1.0f, 0.0f,
+                0.0f); // Rotate around X-axis
+    float temp[16];
+    mat4_rotate(temp, timeValue * 0.5f, 0.0f, 1.0f,
+                0.0f); // Rotate around Y-axis
+    mat4_multiply(model, temp, model);
+
+    // Pass model matrix to shader
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1,
+                       GL_FALSE, model);
+
+    // Render the cube
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // Swap buffers and poll events
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
 
-  glDeleteVertexArrays(1, &VAO1);
-  glDeleteVertexArrays(1, &VAO2);
-  glDeleteProgram(shaderProgram1);
-  glDeleteProgram(shaderProgram2);
+  // Cleanup
+  glDeleteVertexArrays(1, &VAO);
+  glDeleteBuffers(1, &VBO);
+  glDeleteProgram(shaderProgram);
+  glDeleteTextures(1, &texture);
 
   glfwTerminate();
   return 0;
