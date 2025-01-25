@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = $(shell pkg-config --cflags sdl2 SDL2_mixer)
-LDFLAGS = $(shell pkg-config --libs sdl2 SDL2_mixer)
-TARGET = main
+CFLAGS = $(shell pkg-config --cflags sdl2 SDL2_mixer gl)
+LDFLAGS = $(shell pkg-config --libs sdl2 SDL2_mixer gl) -lm
+TARGET = musical_circle
 
 all: $(TARGET)
 
